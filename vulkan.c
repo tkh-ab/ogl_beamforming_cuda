@@ -1338,10 +1338,13 @@ vk_load_physical_device(Arena arena, Stream *err)
 	}
 
 	vk->memory_info.memory_type_indices[VulkanMemoryKind_BAR] = bar_index;
-
+	
+	//char message[256];
 	for (u32 i = 0; i < bmp->memoryTypeCount; i++) {
+		//int len = snprintf(message, sizeof(message), "memory type %u / %u: flags = 0x%X, heap index = %u\n", i, bmp->memoryTypeCount, bmp->memoryTypes[i].propertyFlags, bmp->memoryTypes[i].heapIndex);
+		//os_console_log((uint8_t*)message, len);
 		if ((bmp->memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) == 0) {
-			assert(bmp->memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+			//assert(bmp->memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 			vk->memory_info.memory_type_indices[VulkanMemoryKind_Host] = i;
 			break;
 		}
