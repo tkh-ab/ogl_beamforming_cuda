@@ -1,0 +1,11 @@
+
+
+
+Hilbert is currently listed as a shader but with a beamformer_shader_reloadable_index_by_shader value of -1;
+    This causes beamformer_reload_compute_pipeline to crash as it never checks that a valid index is returned from that array
+    Current workaround is an early return for index < 0
+    For a proper fix we could add an external flag to BeamformerShaderDescriptor indicating that no load is needed.
+
+
+
+The app can call cuda_hilbert successfully, registration and setup need to be implemented.
