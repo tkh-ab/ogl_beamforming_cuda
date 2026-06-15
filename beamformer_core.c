@@ -866,6 +866,12 @@ beamformer_reload_compute_pipeline(VulkanHandle *pipeline, BeamformerShaderKind 
                                    BeamformerShaderDescriptor *shader_descriptor, Arena arena)
 {
 	i32 index  = beamformer_shader_reloadable_index_by_shader[shader];
+
+	if(index < 0 )
+	{
+		return;
+	}
+
 	uv3 layout = shader_descriptor ? shader_descriptor->layout : (uv3){{vk_gpu_info()->subgroup_size, 1, 1}};
 	BeamformerShaderReloadInfo info = {
 		.shader            = shader,
@@ -1043,6 +1049,8 @@ do_compute_shader(BeamformerCtx *ctx, VulkanHandle cmd, BeamformerComputePlan *c
 	}break;
 
 	case BeamformerShaderKind_Hilbert:{
+		s8 msg = s8("Performing CUDA Hilbert.\n");
+		os_console_log(msg.data, msg.len);
 		cuda_hilbert(input_index, output_index);
 		cc->ping_pong_input_index = !cc->ping_pong_input_index;
 	}break;

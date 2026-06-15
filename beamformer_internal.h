@@ -231,7 +231,10 @@ CUDA_REGISTER_BUFFERS_FN(cuda_register_buffers_stub) {}
 
 #define CUDA_HILBERT_FN(name) void name(u32 input_buffer_idx, u32 output_buffer_idx)
 typedef CUDA_HILBERT_FN(cuda_hilbert_fn);
-CUDA_HILBERT_FN(cuda_hilbert_stub) {}
+CUDA_HILBERT_FN(cuda_hilbert_stub) {
+	s8 msg = s8("CUDA HILBERT STUB\n");
+	os_console_log(msg.data, msg.len);
+}
 
 #define CUDA_SET_CHANNEL_MAPPING_FN(name) void name(i16 *channel_mapping)
 typedef CUDA_SET_CHANNEL_MAPPING_FN(cuda_set_channel_mapping_fn);
