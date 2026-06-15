@@ -97,7 +97,7 @@ beamformer_load_cuda_library(BeamformerCtx *ctx, OSLibrary cuda, Arena arena)
 	/* TODO(rnp): (25.10.30) registering the rf buffer with CUDA is currently
 	 * causing a major performance regression. for now we are disabling its use
 	 * altogether. it will be reenabled once the issue can be fixed */
-	b32 result = 0 && vk_gpu_info()->vendor == GPUVendor_NVIDIA && ValidHandle(cuda);
+	b32 result = vk_gpu_info()->vendor == GPUVendor_NVIDIA && ValidHandle(cuda);
 	if (result) {
 		Stream err = arena_stream(arena);
 
@@ -270,7 +270,7 @@ beamformer_init(BeamformerInput *input)
 
 	ctx->shared_memory->capabilities.cuda    = cuda_supported();
 	// TODO(rnp): re-enable hilbert support, with and without cuda
-	ctx->shared_memory->capabilities.hilbert = 0;
+	ctx->shared_memory->capabilities.hilbert = 1;
 
 	/* TODO(rnp): I'm not sure if its a good idea to pre-reserve a bunch of semaphores
 	 * on w32 but thats what we are doing for now */
