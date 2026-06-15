@@ -433,6 +433,18 @@ load_platform_libraries(BeamformerInput *input)
 
 	input->cuda_library_handle = load_library(OS_CUDA_LIB_NAME, OS_CUDA_LIB_TEMP_NAME);
 
+	if InvalidHandle(input->cuda_library_handle)
+	{
+		s8 msg = s8("[os] warning: failed to load CUDA library, CUDA features will be unavailable\n");
+		os_console_log(msg.data, msg.len);
+	}
+	else
+	{
+		s8 msg = s8("[os] loaded CUDA library successfully\n");
+		os_console_log(msg.data, msg.len);
+	}
+		
+
 	#if BEAMFORMER_RENDERDOC_HOOKS
 	local_persist OSLibrary renderdoc_handle = {OSInvalidHandleValue};
 	renderdoc_handle = get_module(OS_RENDERDOC_SONAME);
