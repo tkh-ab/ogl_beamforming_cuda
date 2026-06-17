@@ -376,7 +376,16 @@ plan_compute_pipeline(BeamformerComputePlan *cp, BeamformerParameterBlock *pb, A
 	for EachIndex(pb->pipeline.shader_count, it) {
 		// NOTE(rnp): skip unnecessary shaders
 		switch (pb->pipeline.shaders[it]) {
-		case BeamformerShaderKind_Hilbert:{if (!run_hilbert) continue;}break;
+		case BeamformerShaderKind_Hilbert:{
+			if (run_hilbert)
+			{
+				u32 in_dims[3] = {input_sample_count * acquisition_count, cp->channel_count,0};
+				u32 out_dims[3] = {input_sample_count, cp->channel_count, acquisition_count};
+				cuda_init(in_dims, out_dims);
+			}
+			continue;
+		
+		}break;
 
 		case BeamformerShaderKind_Decode:{
 			if (pb->parameters.decode_mode == BeamformerDecodeMode_None)
