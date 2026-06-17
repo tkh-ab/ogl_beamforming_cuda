@@ -224,11 +224,17 @@ DEBUG_IMPORT renderdoc_end_frame_capture_fn         *end_frame_capture;
 #define cuda_supported() (cuda_init != cuda_init_stub)
 #define CUDA_INIT_FN(name) void name(u32 *input_dims, u32 *decoded_dims)
 typedef CUDA_INIT_FN(cuda_init_fn);
-CUDA_INIT_FN(cuda_init_stub) {}
+CUDA_INIT_FN(cuda_init_stub) {
+	s8 msg = s8("CUDA INIT STUB\n");
+	os_console_log(msg.data, msg.len);
+}
 
 #define CUDA_REGISTER_BUFFERS_FN(name) void name(u32 *rf_data_ssbos, u32 rf_buffer_count, u32 raw_data_ssbo)
 typedef CUDA_REGISTER_BUFFERS_FN(cuda_register_buffers_fn);
-CUDA_REGISTER_BUFFERS_FN(cuda_register_buffers_stub) {}
+CUDA_REGISTER_BUFFERS_FN(cuda_register_buffers_stub) {
+	s8 msg = s8("CUDA REGISTER BUFFERS STUB\n");
+	os_console_log(msg.data, msg.len);
+}
 
 #define CUDA_HILBERT_FN(name) void name(u32 input_buffer_idx, u32 output_buffer_idx)
 typedef CUDA_HILBERT_FN(cuda_hilbert_fn);
@@ -239,7 +245,10 @@ CUDA_HILBERT_FN(cuda_hilbert_stub) {
 
 #define CUDA_SET_CHANNEL_MAPPING_FN(name) void name(i16 *channel_mapping)
 typedef CUDA_SET_CHANNEL_MAPPING_FN(cuda_set_channel_mapping_fn);
-CUDA_SET_CHANNEL_MAPPING_FN(cuda_set_channel_mapping_stub) {}
+CUDA_SET_CHANNEL_MAPPING_FN(cuda_set_channel_mapping_stub) {
+	s8 msg = s8("CUDA SET CHANNEL MAPPING STUB\n");
+	os_console_log(msg.data, msg.len);
+}
 
 #define CUDALibraryProcedureList \
 	X(hilbert,             "cuda_hilbert")             \
