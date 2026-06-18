@@ -250,11 +250,19 @@ CUDA_SET_CHANNEL_MAPPING_FN(cuda_set_channel_mapping_stub) {
 	os_console_log(msg.data, msg.len);
 }
 
+#define CUDA_REGISTER_PING_PONG_BUFFERS_FN(name) void name(void* memory_handle, size_t memory_size, u32 buffer_count, u32 buffer_size)
+typedef CUDA_REGISTER_PING_PONG_BUFFERS_FN(cuda_register_ping_pong_buffers_fn);
+CUDA_REGISTER_PING_PONG_BUFFERS_FN(cuda_register_ping_pong_buffers_stub) {
+	s8 msg = s8("CUDA REGISTER PING PONG BUFFERS STUB\n");
+	os_console_log(msg.data, msg.len);
+}
+
 #define CUDALibraryProcedureList \
 	X(hilbert,             "cuda_hilbert")             \
 	X(init,                "init_cuda_configuration")  \
 	X(register_buffers,    "register_cuda_buffers")    \
-	X(set_channel_mapping, "cuda_set_channel_mapping")
+	X(set_channel_mapping, "cuda_set_channel_mapping") \
+	X(register_ping_pong_buffers, "register_ping_pong_buffers")
 
 #define X(name, ...) DEBUG_IMPORT cuda_## name ##_fn *cuda_## name;
 CUDALibraryProcedureList
