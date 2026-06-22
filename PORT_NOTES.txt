@@ -8,4 +8,8 @@ Hilbert is currently listed as a shader but with a beamformer_shader_reloadable_
 
 
 
-The app can call cuda_hilbert successfully, registration and setup need to be implemented.
+The first pass in plan_compute_pipeline calls continue in the hilbert case, which prevents a node from being created
+	Its currently commented out, but no validation is done on the node struct atm 
+	This might be the issue
+
+
