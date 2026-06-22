@@ -480,9 +480,10 @@ plan_compute_pipeline(BeamformerComputePlan *cp, BeamformerParameterBlock *pb, A
 			{
 				u32 in_dims[3] = {input_sample_count * acquisition_count, cp->channel_count,0};
 				u32 out_dims[3] = {input_sample_count, cp->channel_count, acquisition_count};
-				cuda_init(in_dims, out_dims);
+				cuda_init(in_dims, out_dims, chunk_channel_count);
 			}
-			continue;
+			// THIS continue stops a node from being created for Hilbert, so it gets skipped in the pipeline
+			//continue;
 		
 		}break;
 
@@ -1054,6 +1055,8 @@ beamformer_commit_parameter_block(BeamformerCtx *ctx, BeamformerComputePlan *cp,
 				// IMPORTANT: on linux the handle is returned to os and should be cleared after import
 				// see usage of glImportMemoryFdEXT and surrounding code in ui.c for examples
 				if (cuda) {
+					cuda_register_ping_pong_buffers( (void*)ctx->compute_context.ping_pong_export_handle.value[0], 
+													buffer_size, PING_PONG_BUFFER_SLOTS, cp->rf_size);
 				}
 			}
 

@@ -222,7 +222,7 @@ DEBUG_IMPORT renderdoc_end_frame_capture_fn         *end_frame_capture;
 // NOTE: CUDA Library Bindings
 
 #define cuda_supported() (cuda_init != cuda_init_stub)
-#define CUDA_INIT_FN(name) void name(u32 *input_dims, u32 *decoded_dims)
+#define CUDA_INIT_FN(name) void name(u32 *input_dims, u32 *decoded_dims, u32 chunk_channel_count)
 typedef CUDA_INIT_FN(cuda_init_fn);
 CUDA_INIT_FN(cuda_init_stub) {
 	s8 msg = s8("CUDA INIT STUB\n");
@@ -262,7 +262,7 @@ CUDA_REGISTER_PING_PONG_BUFFERS_FN(cuda_register_ping_pong_buffers_stub) {
 	X(init,                "init_cuda_configuration")  \
 	X(register_buffers,    "register_cuda_buffers")    \
 	X(set_channel_mapping, "cuda_set_channel_mapping") \
-	X(register_ping_pong_buffers, "register_ping_pong_buffers")
+	X(register_ping_pong_buffers, "register_ping_pong_buffers") \
 
 #define X(name, ...) DEBUG_IMPORT cuda_## name ##_fn *cuda_## name;
 CUDALibraryProcedureList
