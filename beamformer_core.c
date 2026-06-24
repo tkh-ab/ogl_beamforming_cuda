@@ -1032,32 +1032,43 @@ beamformer_commit_parameter_block(BeamformerCtx *ctx, BeamformerComputePlan *cp,
 			cp->acquisition_kind  = pb->parameters.acquisition_kind;
 			cp->contrast_mode     = pb->parameters.contrast_mode;
 
+			BeamformerComputeContext *cc = &ctx->compute_context;
 			i64 buffer_size = PING_PONG_BUFFER_SLOTS * round_up_to(cp->rf_size, 64);
-			if (ctx->compute_context.ping_pong_buffer.size < buffer_size) {
+			if (cc->ping_pong_buffer.size < buffer_size) {
 				b32 cuda = cuda_supported();
 				GPUBufferAllocateInfo allocate_info = {
 					.size   = buffer_size,
-					.export = cuda ? &ctx->compute_context.ping_pong_export_handle : 0,
+					.export = cuda ? &cc->ping_pong_export_handle : 0,
 					.label  = str8("PingPongBuffer"),
 				};
-				vk_buffer_allocate(&ctx->compute_context.ping_pong_buffer, &allocate_info);
+				vk_buffer_allocate(&cc->ping_pong_buffer, &allocate_info);
 
 				BeamformerShaderResourceInfo shader_resource_infos[] = {
 					{
 						.kind   = BeamformerShaderResourceKind_Buffer,
-						.handle = ctx->compute_context.ping_pong_buffer.handle,
+						.handle = cc->ping_pong_buffer.handle,
 						.slot   = BeamformerShaderBufferSlot_PingPong,
 					},
 				};
 				vk_bind_shader_resources(shader_resource_infos, countof(shader_resource_infos));
 
-				// TODO(rnp): figure out how to share with CUDA
 				// IMPORTANT: on linux the handle is returned to os and should be cleared after import
 				// see usage of glImportMemoryFdEXT and surrounding code in ui.c for examples
 				if (cuda) {
-					cuda_register_ping_pong_buffers( (void*)ctx->compute_context.ping_pong_export_handle.value[0], 
-													buffer_size, PING_PONG_BUFFER_SLOTS, cp->rf_size);
+					cuda_register_ping_pong_buffers((void *)cc->ping_pong_export_handle.value[0],
+					                                buffer_size, PING_PONG_BUFFER_SLOTS,
+					                                buffer_size / PING_PONG_BUFFER_SLOTS);
 				}
+			}
+
+			if (cuda_supported() && cc->ping_pong_buffer.size >= buffer_size &&
+			    !cc->vulkan_to_cuda_semaphore.value[0])
+			{
+				cc->vulkan_to_cuda_semaphore = vk_create_semaphore(&cc->vulkan_to_cuda_semaphore_export);
+				cc->cuda_to_vulkan_semaphore = vk_create_semaphore(&cc->cuda_to_vulkan_semaphore_export);
+				cc->cuda_sync_ready =
+					cuda_register_vk_semaphores((void *)cc->vulkan_to_cuda_semaphore_export.value[0],
+					                            (void *)cc->cuda_to_vulkan_semaphore_export.value[0]);
 			}
 
 			if (pb->parameters.decode_mode != BeamformerDecodeMode_None &&
@@ -1109,11 +1120,24 @@ beamformer_commit_parameter_block(BeamformerCtx *ctx, BeamformerComputePlan *cp,
 	}
 }
 
+function u64
+end_compute_command(BeamformerCtx *ctx, VulkanHandle cmd, VulkanHandle finished_semaphore)
+{
+	BeamformerComputeContext *cc = &ctx->compute_context;
+	VulkanHandle wait_semaphore = {0};
+	if (cc->cuda_wait_pending) {
+		wait_semaphore = cc->cuda_to_vulkan_semaphore;
+		cc->cuda_wait_pending = 0;
+	}
+	return vk_command_end(cmd, wait_semaphore, finished_semaphore);
+}
+
 function void
-do_compute_shader(BeamformerCtx *ctx, VulkanHandle cmd, BeamformerComputePlan *cp, BeamformerFrame *frame,
+do_compute_shader(BeamformerCtx *ctx, VulkanHandle *cmdp, BeamformerComputePlan *cp, BeamformerFrame *frame,
                   u32 shader_slot, u32 channel_offset, u64 rf_pointer, Arena arena)
 {
 	BeamformerComputeContext *cc = &ctx->compute_context;
+	VulkanHandle cmd = *cmdp;
 
 	u32 output_index     = !cc->ping_pong_input_index;
 	u32 input_index      =  cc->ping_pong_input_index;
@@ -1128,7 +1152,8 @@ do_compute_shader(BeamformerCtx *ctx, VulkanHandle cmd, BeamformerComputePlan *c
 
 	uv3 dispatch = cp->shader_descriptors[shader_slot].dispatch;
 
-	vk_command_bind_pipeline(cmd, cp->vulkan_pipelines[shader_slot]);
+	if (cp->pipeline.shaders[shader_slot] != BeamformerShaderKind_Hilbert)
+		vk_command_bind_pipeline(cmd, cp->vulkan_pipelines[shader_slot]);
 
 	switch (cp->pipeline.shaders[shader_slot]) {
 
@@ -1170,7 +1195,37 @@ do_compute_shader(BeamformerCtx *ctx, VulkanHandle cmd, BeamformerComputePlan *c
 	case BeamformerShaderKind_Hilbert:{
 		s8 msg = s8("Performing CUDA Hilbert.\n");
 		os_console_log(msg.data, msg.len);
-		cuda_hilbert(input_index, output_index);
+
+		u32 hilbert_output_index = output_index;
+		if ((shader_slot + 1) == das_index)
+			hilbert_output_index = das_output_index;
+
+		GPUMemoryBarrierInfo vulkan_to_cuda_barrier = {
+			.gpu_buffer = &cc->ping_pong_buffer,
+			.offset     = pp_input_pointer - cc->ping_pong_buffer.gpu_pointer,
+			.size       = pp_size,
+		};
+		vk_command_buffer_memory_barriers(cmd, &vulkan_to_cuda_barrier, 1);
+
+		u64 vulkan_to_cuda_timeline = end_compute_command(ctx, cmd, cc->cuda_sync_ready ?
+		                                                   cc->vulkan_to_cuda_semaphore :
+		                                                   (VulkanHandle){0});
+		if (!cc->cuda_sync_ready)
+			vk_host_wait_timeline(VulkanTimeline_Compute, vulkan_to_cuda_timeline, -1ULL);
+
+		cuda_hilbert(input_index, hilbert_output_index);
+
+		cmd = vk_command_begin(VulkanTimeline_Compute);
+		*cmdp = cmd;
+		cc->cuda_wait_pending = cc->cuda_sync_ready;
+
+		GPUMemoryBarrierInfo cuda_to_vulkan_barrier = {
+			.gpu_buffer = &cc->ping_pong_buffer,
+			.offset     = hilbert_output_index * pp_size,
+			.size       = pp_size,
+		};
+		vk_command_buffer_memory_barriers(cmd, &cuda_to_vulkan_barrier, 1);
+
 		cc->ping_pong_input_index = !cc->ping_pong_input_index;
 	}break;
 
@@ -1558,17 +1613,17 @@ complete_queue(BeamformerCtx *ctx, BeamformWorkQueue *q, Arena *arena)
 				u64 rf_pointer = rf->buffer.gpu_pointer + slot * rf->active_rf_size;
 				rf_pointer += cp->raw_channel_byte_stride * channel_offset;
 				for (u32 i = 0; i < cp->first_image_shader_index; i++) {
-					do_compute_shader(ctx, cmd, cp, frame, i, channel_offset, rf_pointer, *arena);
+					do_compute_shader(ctx, &cmd, cp, frame, i, channel_offset, rf_pointer, *arena);
 					vk_command_timestamp(cmd);
 				}
 			}
 
 			for (u32 i = cp->first_image_shader_index; i < cp->pipeline.shader_count; i++) {
-				do_compute_shader(ctx, cmd, cp, frame, i, 0, 0, *arena);
+				do_compute_shader(ctx, &cmd, cp, frame, i, 0, 0, *arena);
 				vk_command_timestamp(cmd);
 			}
 
-			u64 end_timeline_value = vk_command_end(cmd, (VulkanHandle){0}, (VulkanHandle){0});
+			u64 end_timeline_value = end_compute_command(ctx, cmd, (VulkanHandle){0});
 			if (work->kind == BeamformerWorkKind_ComputeIndirect) {
 				atomic_store_u64(rf->compute_complete_values + slot, end_timeline_value);
 				atomic_add_u64(&rf->compute_index, 1);

@@ -14,9 +14,9 @@
 #include <stdlib.h>
 #include <zstd.h>
 
-global iv3 g_output_points    = {{512, 1, 1024}};
-global v2  g_axial_extent     = {{ 10e-3f, 165e-3f}};
-global v2  g_lateral_extent   = {{-60e-3f,  60e-3f}};
+global iv3 g_output_points    = {{512, 1, 512}};
+global v2  g_axial_extent     = {{ 10e-3f, 25e-3f}};
+global v2  g_lateral_extent   = {{-15e-3f,  15e-3f}};
 global f32 g_f_number         = 0.5f;
 
 typedef struct {
@@ -449,12 +449,15 @@ execute_study(Arena arena, Stream path, Options *options)
 
 	bp.decimation_rate = 1;
 
-	if (bp.data_kind != BeamformerDataKind_Float32Complex &&
-	    bp.data_kind != BeamformerDataKind_Int16Complex)
-	{
-		bp.compute_stages[bp.compute_stages_count++] = BeamformerShaderKind_Demodulate;
-	}
+	// if (bp.data_kind != BeamformerDataKind_Float32Complex &&
+	//     bp.data_kind != BeamformerDataKind_Int16Complex)
+	// {
+		// bp.compute_stages[bp.compute_stages_count++] = BeamformerShaderKind_Demodulate;
+	// }
 	bp.compute_stages[bp.compute_stages_count++] = BeamformerShaderKind_Decode;
+
+	bp.compute_stages[bp.compute_stages_count++] = BeamformerShaderKind_Hilbert;
+
 	bp.compute_stages[bp.compute_stages_count++] = BeamformerShaderKind_DAS;
 
 	{
@@ -576,14 +579,22 @@ main(i32 argc, char *argv[])
 {
 	Options options = parse_argv(argc, argv);
 
-	if (options.remaining_count != 1)
-		usage(argv[0]);
+	// if (options.remaining_count != 1)
+	// 	usage(argv[0]);
 
 	signal(SIGINT, sigint);
 
 	Arena arena = os_alloc_arena(KB(8));
 	Stream path = stream_alloc(&arena, KB(4));
-	stream_append_s8(&path, c_str_to_s8(options.remaining[0]));
+
+	if (options.remaining_count != 1){
+		stream_append_s8(&path, c_str_to_s8("C:\\Users\\tkhen\\OneDrive\\Documents\\MATLAB\\lab\\ultrasound_matlab\\vrs_data\\flow\\april_26_flow\\260429_CSX4002B_dfluid_static_9mhz_FORCES-Tx-Row.bp"));
+	}
+	else{
+		stream_append_s8(&path, c_str_to_s8(options.remaining[0]));
+	}
+
+	
 
 	execute_study(arena, path, &options);
 

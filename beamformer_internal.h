@@ -257,12 +257,21 @@ CUDA_REGISTER_PING_PONG_BUFFERS_FN(cuda_register_ping_pong_buffers_stub) {
 	os_console_log(msg.data, msg.len);
 }
 
+#define CUDA_REGISTER_VK_SEMAPHORES_FN(name) b8 name(void *vulkan_signal_handle, void *cuda_signal_handle)
+typedef CUDA_REGISTER_VK_SEMAPHORES_FN(cuda_register_vk_semaphores_fn);
+CUDA_REGISTER_VK_SEMAPHORES_FN(cuda_register_vk_semaphores_stub) {
+	s8 msg = s8("CUDA REGISTER VK SEMAPHORES STUB\n");
+	os_console_log(msg.data, msg.len);
+	return 0;
+}
+
 #define CUDALibraryProcedureList \
 	X(hilbert,             "cuda_hilbert")             \
 	X(init,                "init_cuda_configuration")  \
 	X(register_buffers,    "register_cuda_buffers")    \
 	X(set_channel_mapping, "cuda_set_channel_mapping") \
 	X(register_ping_pong_buffers, "register_ping_pong_buffers") \
+	X(register_vk_semaphores, "register_cuda_vk_semaphores") \
 
 #define X(name, ...) DEBUG_IMPORT cuda_## name ##_fn *cuda_## name;
 CUDALibraryProcedureList
@@ -462,6 +471,13 @@ typedef struct {
 	GPUBuffer ping_pong_buffer;
 	OSHandle  ping_pong_export_handle;
 	u32       ping_pong_input_index;
+
+	VulkanHandle vulkan_to_cuda_semaphore;
+	VulkanHandle cuda_to_vulkan_semaphore;
+	OSHandle     vulkan_to_cuda_semaphore_export;
+	OSHandle     cuda_to_vulkan_semaphore_export;
+	b32          cuda_sync_ready;
+	b32          cuda_wait_pending;
 
 	f32 processing_progress;
 	b32 processing_compute;
