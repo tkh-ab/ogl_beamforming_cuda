@@ -526,6 +526,11 @@ plan_compute_pipeline(BeamformerComputePlan *cp, BeamformerParameterBlock *pb, A
 			}
 		}break;
 
+		case BeamformerShaderKind_Hilbert:{
+			node->input_data_kind  = BeamformerDataKind_Float32;
+			node->output_data_kind = BeamformerDataKind_Float32Complex;
+		}break;
+
 		case BeamformerShaderKind_DAS:{
 			node->input_data_kind  = das_data_kind;
 			node->input_stride.x   = 1;                                      // Sample Stride
