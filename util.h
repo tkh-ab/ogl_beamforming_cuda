@@ -164,7 +164,11 @@ typedef u64      uptr;
 #define DLLInsert(nil, f, l, n, next, prev) (\
 	((f) == 0 || (f) == nil) ? ((f) = (l) = (n), (n)->next = (n)->prev = nil) :\
 	((n)->next = (f), (n)->prev = (f)->prev, (f)->prev = (n), (f) = (n)),\
+<<<<<<< HEAD
 	(((n)->prev && (n)->prev != nil) ? ((n)->prev->next = (n)) : (0)))
+=======
+	((n->prev && n->prev != nil) ? ((n)->prev->next = (n)) : (0)))
+>>>>>>> db8f35d (DLLInsert: correct brackets)
 
 #define DLLInsertFirst(nil, f, l, n, next, prev) DLLInsert(nil, f, l, n, next, prev)
 #define DLLInsertLast(nil, f, l, n, next, prev)  DLLInsert(nil, l, f, n, prev, next)
