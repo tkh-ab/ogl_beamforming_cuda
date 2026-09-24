@@ -3620,6 +3620,8 @@ ui_build_live_imaging_controls(BeamformerUIPanel *panel)
 {
 	BeamformerLiveImagingParameters *lip = &beamformer_context->shared_memory->live_imaging_parameters;
 
+	float node_size = 0;
+
 	UIFontSize(30.f)
 	UIScroll(Axis2_Count)
 	{
@@ -3793,7 +3795,12 @@ ui_build_live_imaging_controls(BeamformerUIPanel *panel)
 				}
 			}
 		}
+		node_size = ui_top_parent()->computed_size[Axis2_X];
 	}
+	UINode * top_parent = ui_top_parent();
+	float window_size = top_parent->parent->computed_size[Axis2_X];
+	panel->parent->parent->u.split.fraction = 1 - (node_size / window_size);
+	//top_parent->semantic_width = ui_pct((node_size / window_size), 1.f);
 }
 
 function UISignal
